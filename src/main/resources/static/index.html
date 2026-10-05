@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autorización de Pagos</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #f5f7fa; color: #2c3e50; padding: 2rem; }
+    header { margin-bottom: 2rem; border-bottom: 2px solid #e1e8ed; padding-bottom: 1rem; }
+    h1 { font-size: 1.8rem; color: #1a2a3a; }
+    h1 span { color: #9b59b6; }
+    .subtitle { color: #7f8c8d; font-size: 0.9rem; margin-top: 0.3rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+             gap: 1rem; margin-bottom: 2rem; }
+    .card { background: white; padding: 1.2rem; border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .card .label { font-size: 0.8rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card .value { font-size: 2rem; font-weight: 700; margin-top: 0.3rem; }
+    .card.pendiente .value { color: #f39c12; }
+    .card.aprobado .value { color: #27ae60; }
+    .card.rechazado .value { color: #e74c3c; }
+    .card.revision .value { color: #3498db; }
+    .card.cuentas .value { color: #2c3e50; }
+    h2 { font-size: 1.2rem; margin: 1.5rem 0 0.8rem 0; color: #34495e; }
+    table { width: 100%; background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-collapse: collapse; }
+    th { background: #34495e; color: white; text-align: left; padding: 0.8rem 1rem;
+         font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 0.8rem 1rem; border-bottom: 1px solid #ecf0f1; font-size: 0.9rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background: #f8f9fa; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px;
+             font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+    .badge.PENDIENTE { background: #fef9e6; color: #b7950b; }
+    .badge.APROBADO { background: #e8f8ef; color: #229954; }
+    .badge.RECHAZADO { background: #fee; color: #c0392b; }
+    .badge.EN_REVISION { background: #eaf2fb; color: #2471a3; }
+    .btn-link { background: none; border: 1px solid #9b59b6; color: #9b59b6;
+                padding: 0.3rem 0.7rem; border-radius: 5px; cursor: pointer;
+                font-size: 0.8rem; font-weight: 600; }
+    .btn-link:hover { background: #9b59b6; color: white; }
+    .error { color: #c0392b; padding: 1rem; background: #fee; border-radius: 8px; }
+    .panel { background: white; padding: 1.5rem; border-radius: 8px;
+             box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 2rem; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.8rem; align-items: end; }
+    label { display: block; font-size: 0.8rem; color: #7f8c8d; margin-bottom: 0.3rem;
+            text-transform: uppercase; letter-spacing: 0.5px; }
+    input { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #d5dbdb; border-radius: 6px;
+            font-size: 0.9rem; font-family: inherit; }
+    input:focus { outline: none; border-color: #9b59b6; }
+    button { padding: 0.65rem 1.4rem; background: #9b59b6; color: white; border: none;
+             border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    button:hover { background: #8e44ad; }
+    button:disabled { background: #bdc3c7; cursor: not-allowed; }
+    .refresh { background: #3498db; margin-top: 1rem; }
+    .refresh:hover { background: #2980b9; }
+    .timestamp { color: #95a5a6; font-size: 0.8rem; margin-top: 1rem; text-align: right; }
+    .toast { position: fixed; top: 1rem; right: 1rem; padding: 0.8rem 1.2rem; border-radius: 6px;
+             color: white; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+             opacity: 0; transform: translateY(-10px); transition: all 0.3s; z-index: 1000; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.ok { background: #27ae60; }
+    .toast.err { background: #e74c3c; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+                      display: none; align-items: center; justify-content: center; z-index: 900; }
+    .modal-backdrop.show { display: flex; }
+    .modal { background: white; border-radius: 10px; padding: 1.5rem;
+             max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 1rem; color: #34495e; }
+    .modal .close { float: right; background: none; border: none; font-size: 1.5rem;
+                    color: #7f8c8d; cursor: pointer; padding: 0; }
+    .timeline { border-left: 3px solid #e1e8ed; margin-left: 1rem; padding-left: 1rem; }
+    .timeline-item { position: relative; margin-bottom: 1rem; }
+    .timeline-item::before { content: ''; position: absolute; left: -1.5rem; top: 0.3rem;
+                             width: 12px; height: 12px; border-radius: 50%; background: #3498db; }
+    .timeline-item.ok::before { background: #27ae60; }
+    .timeline-item.err::before { background: #e74c3c; }
+    .timeline-item .resultado { font-weight: 700; font-size: 0.9rem; }
+    .timeline-item .detalle { color: #7f8c8d; font-size: 0.85rem; margin-top: 0.2rem; }
+    .timeline-item .fecha { color: #95a5a6; font-size: 0.75rem; margin-top: 0.2rem; }
+</style>
+</head>
+<body>
+    <header>
+        <h1>Sistema de <span>Autorización de Pagos</span></h1>
+        <p class="subtitle">Idempotencia · RabbitMQ · Conciliación asíncrona</p>
+    </header>
+
+    <div class="cards">
+        <div class="card cuentas"><div class="label">Cuentas</div><div class="value" id="count-cuentas">-</div></div>
+        <div class="card pendiente"><div class="label">Pendientes</div><div class="value" id="count-pendiente">-</div></div>
+        <div class="card aprobado"><div class="label">Aprobados</div><div class="value" id="count-aprobado">-</div></div>
+        <div class="card rechazado"><div class="label">Rechazados</div><div class="value" id="count-rechazado">-</div></div>
+        <div class="card revision"><div class="label">En revisión</div><div class="value" id="count-revision">-</div></div>
+    </div>
+
+    <h2>Nuevo pago</h2>
+    <div class="panel">
+        <div class="form-row">
+            <div>
+                <label>Cuenta origen</label>
+                <input id="origen" placeholder="ACC-001" value="ACC-001">
+            </div>
+            <div>
+                <label>Cuenta destino</label>
+                <input id="destino" placeholder="ACC-002" value="ACC-002">
+            </div>
+            <div>
+                <label>Monto</label>
+                <input id="monto" type="number" step="0.01" value="100.00">
+            </div>
+            <button id="btn-pagar" onclick="enviarPago()">💸 Pagar</button>
+        </div>
+    </div>
+
+    <h2>Pagos recientes</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th>Monto</th>
+                <th>Estado</th>
+                <th>Mensaje</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="tbody-pagos">
+            <tr><td colspan="8" style="text-align:center;color:#7f8c8d;">Cargando...</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Cuentas</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Número</th>
+                <th>Titular</th>
+                <th>Saldo</th>
+                <th>Límite diario</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody id="tbody-cuentas"></tbody>
+    </table>
+
+    <button class="refresh" onclick="cargarTodo()">🔄 Actualizar</button>
+    <div class="timestamp" id="timestamp"></div>
+
+    <div id="toast" class="toast"></div>
+
+    <div id="modal-backdrop" class="modal-backdrop" onclick="cerrarModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <button class="close" onclick="cerrarModal()">×</button>
+            <h3 id="modal-titulo">Intentos del pago</h3>
+            <div id="modal-contenido"></div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchJson(url, opts) {
+            const res = await fetch(url, opts);
+            if (!res.ok) {
+                const txt = await res.text();
+                throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200)}`);
+            }
+            return res.json();
+        }
+
+        function toast(msg, ok = true) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast show ' + (ok ? 'ok' : 'err');
+            setTimeout(() => { t.className = 'toast'; }, 3000);
+        }
+
+        async function cargarPagos() {
+            const data = await fetchJson('/api/v1/pagos');
+            const tbody = document.getElementById('tbody-pagos');
+            tbody.innerHTML = '';
+
+            const counts = { PENDIENTE: 0, APROBADO: 0, RECHAZADO: 0, EN_REVISION: 0 };
+            data.forEach(p => { if (counts[p.estado] !== undefined) counts[p.estado]++; });
+            document.getElementById('count-pendiente').textContent = counts.PENDIENTE;
+            document.getElementById('count-aprobado').textContent = counts.APROBADO;
+            document.getElementById('count-rechazado').textContent = counts.RECHAZADO;
+            document.getElementById('count-revision').textContent = counts.EN_REVISION;
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#7f8c8d;">Sin pagos aún</td></tr>';
+                return;
+            }
+
+            data.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>#${p.id}</strong></td>
+                    <td>${p.cuentaOrigen}</td>
+                    <td>${p.cuentaDestino}</td>
+                    <td>$${Number(p.monto).toFixed(2)}</td>
+                    <td><span class="badge ${p.estado}">${p.estado}</span></td>
+                    <td>${p.mensaje || '—'}</td>
+                    <td>${new Date(p.creadoEn).toLocaleString('es-EC')}</td>
+                    <td><button class="btn-link" onclick="verIntentos(${p.id})">Ver intentos</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function cargarCuentas() {
+            const data = await fetchJson('/api/v1/cuentas');
+            document.getElementById('count-cuentas').textContent = data.length;
+            const tbody = document.getElementById('tbody-cuentas');
+            tbody.innerHTML = '';
+            data.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${c.numero}</strong></td>
+                    <td>${c.titular}</td>
+                    <td>$${Number(c.saldo).toFixed(2)}</td>
+                    <td>$${Number(c.limiteDiario).toFixed(2)}</td>
+                    <td>${c.activa ? '✅ Activa' : '❌ Inactiva'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function enviarPago() {
+            const btn = document.getElementById('btn-pagar');
+            btn.disabled = true;
+            btn.textContent = '⏳ Procesando...';
+            try {
+                const idemKey = 'web-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+                const body = {
+                    numeroOrigen: document.getElementById('origen').value,
+                    numeroDestino: document.getElementById('destino').value,
+                    monto: parseFloat(document.getElementById('monto').value)
+                };
+                const res = await fetchJson('/api/v1/pagos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idemKey },
+                    body: JSON.stringify(body)
+                });
+                toast(`Pago #${res.id} → ${res.estado}. El banco procesará en segundos...`, res.estado !== 'RECHAZADO');
+                await cargarTodo();
+                // Recargar a los 3 segundos para ver el cambio de estado
+                setTimeout(cargarTodo, 3000);
+            } catch (e) {
+                toast(e.message, false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💸 Pagar';
+            }
+        }
+
+        async function verIntentos(pagoId) {
+            try {
+                const data = await fetchJson(`/api/v1/pagos/${pagoId}/intentos`);
+                document.getElementById('modal-titulo').textContent = `Intentos del pago #${pagoId}`;
+                const cont = document.getElementById('modal-contenido');
+
+                if (data.length === 0) {
+                    cont.innerHTML = '<p style="color:#7f8c8d;">Sin intentos registrados</p>';
+                } else {
+                    cont.innerHTML = '<div class="timeline">' + data.map(i => {
+                        const cls = i.resultado === 'APROBADO' ? 'ok' :
+                                    (i.resultado === 'RECHAZADO' || i.resultado === 'TIMEOUT') ? 'err' : '';
+                        return `
+                            <div class="timeline-item ${cls}">
+                                <div class="resultado">${i.resultado}</div>
+                                <div class="detalle">${i.detalle || '—'}</div>
+                                <div class="fecha">${new Date(i.timestamp).toLocaleString('es-EC')}</div>
+                            </div>
+                        `;
+                    }).join('') + '</div>';
+                }
+                document.getElementById('modal-backdrop').classList.add('show');
+            } catch (e) {
+                toast(e.message, false);
+            }
+        }
+
+        function cerrarModal(event) {
+            if (!event || event.target.id === 'modal-backdrop') {
+                document.getElementById('modal-backdrop').classList.remove('show');
+            }
+        }
+
+        async function cargarTodo() {
+            try {
+                await Promise.all([cargarPagos(), cargarCuentas()]);
+                document.getElementById('timestamp').textContent = 'Actualizado: ' + new Date().toLocaleString('es-EC');
+            } catch (e) {
+                document.getElementById('tbody-pagos').innerHTML =
+                    `<tr><td colspan="8" class="error">Error: ${e.message}</td></tr>`;
+            }
+        }
+
+        cargarTodo();
+        setInterval(cargarTodo, 10000);
+    </script>
+</body>
+</html>

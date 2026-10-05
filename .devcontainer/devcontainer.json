@@ -1,19 +1,27 @@
 {
   "name": "Pagos Dev",
-  "dockerComposeFile": ["../docker-compose.yml"],
-  "service": "app",
-  "workspaceFolder": "/app",
-  "shutdownAction": "stopCompose",
+  "image": "mcr.microsoft.com/devcontainers/java:21-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": "true"
+    },
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "none",
+      "installMaven": "true",
+      "mavenVersion": "3.9.9"
+    }
+  },
   "customizations": {
     "vscode": {
       "extensions": [
         "vscjava.vscode-java-pack",
         "vmware.vscode-boot-dev-pack",
-        "ms-azuretools.vscode-docker",
-        "42crunch.vscode-openapi"
+        "ms-azuretools.vscode-docker"
       ]
     }
   },
-  "forwardPorts": [8080, 5432, 5672, 15672],
-  "remoteUser": "root"
+  "forwardPorts": [8081, 5433, 5673, 15673],
+  "postCreateCommand": "java -version && mvn -version",
+  "remoteUser": "vscode"
 }
