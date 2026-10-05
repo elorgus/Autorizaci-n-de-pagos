@@ -1,0 +1,22 @@
+C4Container
+    title Contenedores - Sistema de Autorizacion de Pagos
+
+    Person(cliente, "Cliente movil")
+    Person(operador, "Operador")
+
+    Container_Boundary(b1, "Sistema de Pagos") {
+        Container(api, "API REST", "Spring Boot 3.4 / Java 21", "Valida, autoriza, audita")
+        ContainerDb(db, "PostgreSQL", "16", "Cuentas, pagos, intentos, idempotencia")
+        ContainerQueue(mq, "RabbitMQ", "3.13", "Eventos pago.creado, conciliacion")
+        ContainerWorker(consumer, "Consumer async", "Spring AMQP", "Llama al banco, reintenta")
+    }
+
+    System_Ext(banco, "Banco externo", "Autoriza pagos")
+
+    Rel(cliente, api, "POST /api/v1/pagos", "JSON/HTTPS")
+    Rel(operador, api, "GET /api/v1/pagos/{id}", "JSON/HTTPS")
+    Rel(api, db, "JPA", "JDBC")
+    Rel(api, mq, "Publica pago.creado", "AMQP")
+    Rel(consumer, mq, "Consume pago.creado", "AMQP")
+    Rel(consumer, banco, "Autoriza", "REST/HTTPS")
+    Rel(consumer, db, "Actualiza estado", "JDBC")
