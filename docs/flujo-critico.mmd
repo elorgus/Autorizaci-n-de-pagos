@@ -1,0 +1,35 @@
+sequenceDiagram
+    actor Cli as Cliente movil
+    participant API as API REST
+    participant DB as PostgreSQL
+    participant MQ as RabbitMQ
+    participant Cons as Consumer async
+    participant Banco as Banco externo
+
+    Cli->>API: POST /api/v1/pagos (Idempotency-Key, monto, cuentas)
+    API->>DB: Buscar pago por idempotency_key
+    alt Pago ya existe
+        DB-->>API: Pago existente
+        API-->>Cli: 200 OK (pago original)
+    else Pago nuevo
+        API->>DB: Validar cuenta, saldo, limite
+        alt Validacion falla
+            API->>DB: Crear pago RECHAZADO + intento
+            API-->>Cli: 422 Unprocessable
+        else Validacion OK
+            API->>DB: Crear pago PENDIENTE + intento
+            API->>MQ: Publicar pago.creado
+            API-->>Cli: 202 Accepted (procesando)
+            MQ-->>Cons: Entrega pago.creado
+            Cons->>Banco: POST /autorizar
+            alt Banco aprueba
+                Banco-->>Cons: APROBADO
+                Cons->>DB: Actualizar pago APROBADO + intento
+            else Banco rechaza
+                Banco-->>Cons: RECHAZADO
+                Cons->>DB: Actualizar pago RECHAZADO + intento
+            else Banco timeout
+                Cons->>DB: Marcar EN_REVISION + reintentar (backoff)
+            end
+        end
+    end
