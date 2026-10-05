@@ -1,0 +1,15 @@
+C4Context
+    title Contexto - Sistema de Autorizacion de Pagos
+
+    Person(cliente, "Cliente movil", "Solicita pagos desde la app")
+    Person(operador, "Operador de cooperativa", "Revisa conciliacion")
+
+    System(pagos, "Sistema de Autorizacion de Pagos", "Valida, autoriza y concilia pagos")
+
+    System_Ext(banco, "Banco externo", "Autoriza pagos interbancarios")
+    System_Ext(notif, "Proveedor de notificaciones", "Push/SMS al cliente")
+
+    Rel(cliente, pagos, "Solicita pago", "HTTPS/JSON")
+    Rel(pagos, banco, "Autoriza pago", "REST/HTTPS")
+    Rel(pagos, notif, "Notifica resultado", "REST/HTTPS")
+    Rel(operador, pagos, "Consulta conciliacion", "HTTPS")
